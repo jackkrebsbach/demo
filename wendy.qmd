@@ -4,5 +4,6 @@ format: html
 ---
 
 ```{r}
+library(deSolve)
 print("hello world")
 ```
