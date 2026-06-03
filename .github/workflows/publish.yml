@@ -1,0 +1,64 @@
+name: Publish to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: 1.8.26
+
+      # engine: knitr — quarto needs R with knitr/rmarkdown to process the
+      # document; the webr cells themselves run client-side in the browser.
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - name: Install R packages
+        run: Rscript -e 'install.packages(c("knitr", "rmarkdown"))'
+
+      - name: Render
+        run: quarto render wendy.qmd
+
+      # Single-document site: serve wendy.html as the index. Relative links to
+      # wendy_files/ survive the rename; everything else is CDN-hosted.
+      - name: Assemble site
+        run: |
+          mkdir -p _site
+          cp wendy.html _site/index.html
+          cp -r wendy_files _site/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
