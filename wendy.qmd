@@ -3,13 +3,9 @@ title: "Wendy Demo"
 format: live-html
 engine: knitr
 webr:
-  packages:
-    - MASS
-    - trust
-    - minpack.lm
-    - wendy
   repos:
     - https://jackkrebsbach.github.io/rwendy-wasm
+    - https://repo.r-wasm.org
 ---
 
 {{< include ./_extensions/r-wasm/live/_knitr.qmd >}}
@@ -59,6 +55,17 @@ $$
 which is exact (no integrator tolerance to worry about).
 
 ```{webr}
+#| autorun: true
+webr::install("MASS", repos = "https://repo.r-wasm.org")
+webr::install("trust", repos = "https://repo.r-wasm.org")
+webr::install("minpack.lm", repos = "https://repo.r-wasm.org")
+webr::install("deSolve", repos = "https://jackkrebsbach.github.io/rwendy-wasm")
+webr::install("wendy", repos = "https://jackkrebsbach.github.io/rwendy-wasm")
+library(deSolve)
+library(wendy)
+```
+
+```{webr}
 # RHS in the f(u, p, t) form that solveWendy() expects
 f <- function(u, p, t) {
   c(p[1] * u[1] - p[2] * u[1]^2)
@@ -77,6 +84,23 @@ logistic_sol <- function(t, p, u0) {
 }
 
 u_true <- logistic_sol(t_eval, p_star, u0)
+```
+
+```{webr}
+f <- function(u, p, t) {
+  c(p[1] * u[1] - p[2] * u[1]^2)
+}
+p_star <- c(1, 1/10)
+tt     <- seq(0, 10, length.out = 60)
+
+modelODE <- function(tvec, state, parameters) {
+  list(as.vector(f(state, parameters, tvec)))
+}
+sol <- deSolve::ode(y = 0.5, times = tt, func = modelODE, parms = p_star)
+
+set.seed(1)
+# Additive Gaussian noise
+U <- sol[, -1, drop = FALSE] + matrix(rnorm(length(tt), sd = 0.1), length(tt))
 ```
 
 ## 2. Corrupt the data with noise
